@@ -549,7 +549,7 @@
 					<div id="dropPointDetails" class$="{{_dropPointDetailsClass}}">
 						<div id="droppoint_overlay" style="height: {{mapHeight}}px; display: block">
 							<div id="droppoint_overlay_close" on-click="_hideDropPointDetails">
-								<img src="/bower_components/gfs-checkout-widget/images/x.png" alt="close" />
+								<img src="./images/x.png" alt="close" />
 							</div>
 							<gfs-droppoint id="overlay-droppoint" droppoint-data="{{_selectedDropPoint}}" container-class="overlay" show-distance="false" show-opening-hours="true"></gfs-droppoint>
 						</div>
@@ -562,7 +562,7 @@
 						</div>
 					</div>
 					</div>
-					<img id='locateme' on-click="_locateMe" src='/bower_components/gfs-checkout-widget/images/locateme.png'/>
+					<img id='locateme' on-click="_locateMe" src='./images/locateme.png'/>
 					<div id="gfsMapCanvas-loading" class="loading"><paper-spinner active id="search-spinner"></paper-spinner></div>
 
 					<div id="gfsMapCanvas">
@@ -588,7 +588,7 @@
 				</div>
  			<div>
                 <div id="droppoint-delivery-options">
-                    <h4>{{calendarDayPrompt}}</h4>
+                    <h4>{{droppointPrompt}}</h4>
                     <ul class="separated">
                         <template is="dom-repeat" items="{{_selectedDroppoints}}" sort="sortServices">
 
@@ -704,7 +704,12 @@ Polymer({
 
 		calendarDayPrompt: {
 			type: String,
-			value: 'Select your preferred collection point to view available services:'
+			value: 'Select your preferred delivery date to view available services:'
+		},
+
+		droppointPrompt: {
+		    type: String,
+		    value: 'Select your preferred collection point to view available services'
 		},
 
 		standardDeliveryTitle: {
@@ -909,12 +914,6 @@ Polymer({
 	],
 
 	// METHODS
-	droppointOpenChanged: function(_droppointOpened) {
-		if (this._selectedDropPoint) {
-			this.set('_selectedDropPoint.chosen', _droppointOpened);
-			this.fire("droppoint-changed", this._selectedDropPoint);
-		}
-	},
 
 	// This function is called as soon as the widget is ready
 	ready: function() {
@@ -1312,7 +1311,7 @@ Polymer({
 	},
 
 	_droppointIcon: function(countryCode) {
-		var url = this.resolveUrl('/bower_components/gfs-checkout-widget/images/');
+		var url = this.resolveUrl('./images/');
 
 		switch (countryCode) {
 			case "DE":
@@ -1493,7 +1492,7 @@ Polymer({
 			return this.homeIcon;
 		}
 		else {
-			return this.resolveUrl('/bower_components/gfs-checkout-widget/images/home.png');
+			return this.resolveUrl('./images/home.png');
 		}
 	},
 
@@ -1535,41 +1534,17 @@ Polymer({
 
 	_unselectDropPoint: function() {
 		if (this._selectedDropPoint) {
-			this._selectedDropPoint.chosen = false;
+		    this._selectedDropPoint.chosen = false;
+		    this.result.collectPoint = null;
 			if (this._currentMarker)
 				this._currentMarker.setAnimation(null);
 			if (this._infoWindow) {
 				this._infoWindow.close();
 			}
 			this._hideDropPointDetails();
+			this.syncP4m();
 		}
 	},
-
-	// _droppointChanged: function (e) {
-	//     //If a drop point has been chosen and it's not the previous choice, unchoose it
-	//     console.log('_droppointChanged', e.detail);
-	//     //If no droppoint chosen yet, or the changed droppoint is not the currently selected one,
-	//     var changedDroppoint = e.detail;
-	//     if (changedDroppoint.droppointData.chosen) {
-	//         //If a different droppoint is already chosen, unchooose it
-	//         if (this._chosenDropPoint) {
-	//             if (this._chosenDropPoint.droppointData.droppointId !== changedDroppoint.droppointData.droppointId) {
-	//                 this._chosenDropPoint.droppointData.chosen = false;
-	//             }
-	//         }
-
-	//         this._chosenDropPoint = changedDroppoint;
-	//         this._unChosen = false;
-	//         //this.$$('#delivery-address').classList.add('hidden'); //zzzzzz
-	//         //this._chosenDropPoint.initData();//streetAddress = "Hello";
-	//     }
-	//         //If a droppoint has been unchosen and it's the currently registered choice, unregister it
-	//     else if (this._chosenDropPoint) {
-	//         if (this._chosenDropPoint.droppointData.droppointId == changedDroppoint.droppointData.droppointId) {
-	//             this._unChoose();
-	//         }
-	//     }
-	// },
 
 	_fixMapMarker: function() {
 	    if (this.$.toggleDropPointsView.checked && this._selectedDropPoint) {
@@ -1590,20 +1565,35 @@ Polymer({
 		}
 	},
 
+	droppointOpenChanged: function (_droppointOpened) {
+	    if (this._selectedDropPoint) {
+	        this.set('_selectedDropPoint.chosen', _droppointOpened);
+	        this.fire("droppoint-changed", this._selectedDropPoint);        
+	    }
+	    else {
+	        this.result.collectPoint = null;
+	    }
+	},
+
 	_droppointChanged: function(e) {
 		console.log('_droppointChanged', e.detail);
 		var changedDroppoint = e.detail;
 
 		// todo provider id needs to be in here as well
-		if (this._selectedDropPoint)
-			if (changedDroppoint.droppointId !== this._selectedDropPoint.droppointId)
-				this._unselectDropPoint();
+		if (this._selectedDropPoint) {
+		    if (changedDroppoint.droppointId !== this._selectedDropPoint.droppointId) {
+		        this._unselectDropPoint();
+		    }	        
+		}
 
 		this._selectedDropPoint = changedDroppoint;
+		this.result.collectPoint = this._selectedDropPoint;
 		// find the marker for animation
 		this._fixMapMarker();
 		var deliveries = this._findDropPointDeliveries(this._selectedDropPoint.providerId);
 		this._selectedDroppoints = deliveries;
+
+		this.syncP4m();
 
 		//If a drop point has been chosen and it's not the previous choice, unchoose it
 		console.log('_droppointChanged', e.detail);
@@ -1954,13 +1944,19 @@ Polymer({
 			this.result.shipping = method.price;
 			this.result.expDeliveryDate = method.deliveryTimeTo;
 
-			var p4mCheckout = parent.document.getElementsByTagName("p4m-checkout")[0];
-			if (p4mCheckout) {
-				p4mCheckout.updateShipping(
-				  this.result.service, this.result.shipping, this.result.expDeliveryDate, this.result.collectPoint
-				);
-			}
+			this.syncP4m();
 		}
+	},
+
+	syncP4m: function () {
+	    var p4mCheckout = parent.document.getElementsByTagName("p4m-checkout")[0];
+	    if (p4mCheckout) {
+	        p4mCheckout.updateShipping(
+              this.result.service, this.result.shipping, this.result.expDeliveryDate, this.result.collectPoint
+            );
+
+	    }
+
 	}
 
 });
