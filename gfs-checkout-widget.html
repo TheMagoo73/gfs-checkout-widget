@@ -1093,7 +1093,6 @@
 					var unencoded = atob(this.gfsData);
 					this._data = JSON.parse(unencoded);
 				}
-				this._dropPoints = this._data.droppoints;
 
                 window.setTimeout(this._delayedInit.bind(this), 0);
             },
@@ -1157,6 +1156,8 @@
             _handleGetDroppointsResponse: function(e) {
                 // assign the new data.
                 this._data = e.detail.response;
+                if (!this._dropPoints)
+                    this._dropPoints = [];
                 this._dropPoints = this._dropPoints.concat(this._data.droppoints);
                 //console.log("GET Droppoints:" + JSON.stringify(this._data.droppoints));
                 this._findAllDeliveryDroppoints();
@@ -1210,7 +1211,6 @@
 						item.timeStamp = parseInt(timeStampStr) * 1000;
 					}).bind(this));
 				}*/
-				this._processDayDefiniteData();
 				this._processNonDayDefiniteData();
 			},
 
@@ -1346,10 +1346,6 @@
                 }
             },
 
-            _processDayDefiniteData: function() {
-
-            },
-
             _forceArray: function(o) {
                 return ((o.constructor !== Array) ? [o] : o);
             },
@@ -1453,7 +1449,7 @@
                 //    // remove the listener
                 //    google.maps.event.clearListeners(self._map, 'bounds_changed');
                 //});
-                // this._loadDroppointMarkers();
+                 //this._loadDroppointMarkers();
             },
 
             _loadDroppointMarkers: function (dropPointsArray) {
@@ -1489,10 +1485,10 @@
                 });
 
                 // 'idle' event is triggered when the user stopped zooming/dragging;
-                //google.maps.event.addListener(self._map, 'idle', function(event) {
-                //    //console.log(JSON.stringify(event));
-                //    self._mapMoved();
-                //});
+                google.maps.event.addListener(self._map, 'idle', function(event) {
+                    //console.log(JSON.stringify(event));
+                    self._mapMoved();
+                });
             },
 
             _droppointIcon: function(countryCode) {
@@ -1636,7 +1632,7 @@
                         });
 
                         //console.log('Boxes to request:', JSON.stringify(boxes));
-                        // self._drawBoxes(boxes, 'green');
+                         //self._drawBoxes(boxes, 'green');
 
                         if (boxes.length > 0) {
                             self.$.regionManager.addRegion([northEast, southWest]);
@@ -1644,8 +1640,6 @@
                             self.$.ajaxGetDroppoints.headers = self._computeHeader();
                             self.$.ajaxGetDroppoints.generateRequest();
                         }
-                        // remove the listener
-                        google.maps.event.clearListeners(self._map, 'bounds_changed');
                     }
                 }
             },
@@ -2117,8 +2111,7 @@
 				this.fire("getDroppointSelectedService");
 
 				this._makeMap();
-                this._loadDroppointMarkers(this._dropPoints);
-                this._fixMapMarker();
+			    this._mapMoved();
             },
 
 			_toggleStandardDeliveryPanelCollapse: function (e) {
