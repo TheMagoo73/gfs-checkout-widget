@@ -1295,6 +1295,13 @@
 
             // This function is called as soon as the widget is ready
             ready: function() {
+                t = this;
+                
+                images = this.querySelectorAll('img');
+
+                images.forEach(function(i){
+                    i.src = t.resolveUrl(i.src);
+                });
             },
 
             _handlePostResponse: function(e) {
